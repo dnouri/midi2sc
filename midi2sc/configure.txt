@@ -1,0 +1,103 @@
+midi2sc configuration
+=====================
+
+Introduction
+------------
+
+The ``read`` function of the ``midi2sc_configure`` module reads wiring
+information from a configuration file that looks like so:
+
+  >>> from StringIO import StringIO
+  >>> from pprint import pprint
+  >>> from midi2sc import configure
+
+  >>> conf = """
+  ... [SOSkick]
+  ... midi_channel = 01
+  ... args = out=0
+  ... 001 = amp_mul=            AbsoluteControl(min=0.0, max=1.27)
+  ... 106 = mod_freq=           IDC(min=2.0, max=20.0, steps=50, value=2.0)
+  ... 107 = mod_index=          IDC(min=2.0, max=20.0, steps=50)
+  ... 108 = beater_noise_level= IDC(min=2.0, max=20.0, steps=50)
+  ... 109 = decay=              IDC(min=0.05, max=1.0, steps=70)
+  ... """
+
+  >>> handlers = configure.read(StringIO(conf))
+  >>> sorted(handlers.keys()) == [0x80, 0x90, 0xb0]
+  True
+
+  >>> handlers[0x80]
+  <NoteOffControl notes={}>
+
+  >>> handlers[0x90]
+  <NoteOnControl group='SOSkick', params={'out': 0}>
+
+  >>> handlers[0xb0]
+  <GroupControl 
+    {1: <AbsoluteControl for 'SOSkick' param 'amp_mul'>,
+     106: <IDC for 'SOSkick' param 'mod_freq'>,
+     107: <IDC for 'SOSkick' param 'mod_index'>,
+     108: <IDC for 'SOSkick' param 'beater_noise_level'>,
+     109: <IDC for 'SOSkick' param 'decay'>}>
+  >>> amp_mul = handlers[0xb0][1]
+  >>> amp_mul.min, amp_mul.max
+  (0.0, 1.27)
+  >>> mod_freq = handlers[0xb0][106]
+  >>> mod_freq.min, mod_freq.max, mod_freq.value
+  (2.0, 20.0, 2.0)
+  >>> mod_index = handlers[0xb0][107]
+  >>> mod_index.min, mod_index.max, mod_index.value
+  (2.0, 20.0, None)
+
+Effect Synths
+-------------
+
+This particular configuration will create an ``Allpass`` instrument
+that doesn't use "Note on".  Instead, this one is supposed to create
+one Synth at the time we read the configuration:
+
+  >>> conf = """
+  ... [Allpass]
+  ... midi_channel = 15
+  ... args = in=16, out=18, delay=0.60417, decay=0.60417
+  ... noteon = false
+  ... 106 = delay_mul_left=  IDC(min=0.0001, max=2.0, steps=6)
+  ... 107 = delay_mul_right= IDC(min=0.0001, max=2.0, steps=6)
+  ... 108 = decay_mul_left=  IDC(min=-2.0, max=2.0, steps=6)
+  ... 109 = decay_mul_right= IDC(min=-2.0, max=2.0, steps=6)
+  ... """
+
+This is to allow us to print the arguments passed to SCSynth instead
+of having the code interact with the real SCSynth:
+
+  >>> from midi2sc import core
+  >>> save_SCSynth = core.SCSynth
+  >>> def print_args(*args, **kwargs):
+  ...     print "SCSynth called with:"
+  ...     pprint(args)
+  ...     pprint(kwargs)
+  >>> core.SCSynth = print_args
+
+Look at how SCSynth is called here, with the parameters provided in
+the configuration ``args``:
+
+  >>> handlers = configure.read(StringIO(conf))
+  SCSynth called with:
+  ('Allpass',)
+  {'decay': 0.60416999999999998,
+   'delay': 0.60416999999999998,
+   'in_': 16,
+   'out': 18}
+
+  >>> core.SCSynth = save_SCSynth
+
+There's no NoteOff or NoteOn handlers:
+
+  >>> sorted(handlers.keys()) == [0xbe]
+  True
+  >>> handlers[0xbe]
+  <GroupControl 
+    {106: <IDC for 'Allpass' param 'delay_mul_left'>,
+     107: <IDC for 'Allpass' param 'delay_mul_right'>,
+     108: <IDC for 'Allpass' param 'decay_mul_left'>,
+     109: <IDC for 'Allpass' param 'decay_mul_right'>}>
