@@ -5,7 +5,7 @@ midi2sc
 Installation
 ============
 
-You can install ``midi2sc`` with ``easy_install``:
+You can install ``midi2sc`` with ``easy_install``::
 
   $ easy_install midi2sc
 
@@ -13,6 +13,13 @@ However, you also need to install pkaudio_ and its dependencies.
 
 .. _pkaudio: http://trac2.assembla.com/pkaudio
 
+You can use subversion to check out a known good version of pkaudio
+from SVN like so::
+
+  svn co http://subversion.assembla.com/svn/pkaudio/ -r13
+
+Then, run ``python setup.py install`` inside the pkaudio directory to
+install pkaudio.
 
 Usage
 =====
